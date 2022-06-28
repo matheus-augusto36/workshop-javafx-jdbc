@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 import application.Main;
+import gui.listeners.DataChangeListener;
 import gui.util.Alerts;
 import gui.util.Utils;
 import javafx.collections.FXCollections;
@@ -26,7 +27,7 @@ import javafx.stage.Stage;
 import model.entities.Department;
 import model.services.DepartmentService;
 
-public class DepartmentListController implements Initializable {
+public class DepartmentListController implements Initializable, DataChangeListener {
 	
 	private DepartmentService service = new DepartmentService();
 
@@ -47,8 +48,8 @@ public class DepartmentListController implements Initializable {
 	@FXML
 	private void onBtNewAction(ActionEvent event) {
 		Stage currentStage = Utils.currentStage(event);
-		Department dep = new Department();
-		createDialogForm("/gui/DepartmentForm.fxml", currentStage, dep);
+		Department obj = new Department();
+		createDialogForm("/gui/DepartmentForm.fxml", currentStage, obj);
 	}
 	
 	public void setDepartmentService(DepartmentService service) {
@@ -72,9 +73,9 @@ public class DepartmentListController implements Initializable {
 		if(service == null) {
 			throw new IllegalStateException("Service is null!");
 		}
-		List<Department> list = service.findAll();
-		obsList = FXCollections.observableArrayList(list);
-		tableViewDepartment.setItems(obsList);
+		List<Department> list = service.findAll(); //faz uma lista receber os departamentos ja existentes no banco de dados
+		obsList = FXCollections.observableArrayList(list); //converte em ObservableList
+		tableViewDepartment.setItems(obsList); //atualiza a tableview com essa lista convertida
 	}
 	
 	private void createDialogForm(String absoluteName, Stage parentStage, Department obj) {
@@ -85,6 +86,7 @@ public class DepartmentListController implements Initializable {
 			DepartmentFormController controller = loader.getController();
 			controller.setDepartment(obj);
 			controller.setDepartmentService(new DepartmentService());
+			controller.subscribeDataChangeListener(this);
 			controller.updateFormData();
 			
 			Stage dialogStage = new Stage();
@@ -98,6 +100,11 @@ public class DepartmentListController implements Initializable {
 		} catch (IOException e) {
 			Alerts.showAlert("IO Exception", "Error loading view", e.getMessage(), AlertType.ERROR);
 		}
+	}
+
+	@Override
+	public void onDataChanged() {
+		updateTableView();
 	}
 
 }
