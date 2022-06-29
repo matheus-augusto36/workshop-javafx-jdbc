@@ -1,45 +1,44 @@
 package gui;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 
+import db.DbException;
+import gui.listeners.DataChangeListener;
+import gui.util.Alerts;
 import gui.util.Constraints;
 import gui.util.Utils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import model.entities.Funcionario;
+import model.entities.Department;
 import model.exceptions.ValidationException;
-import model.services.FuncionarioService;
+import model.services.DepartmentService;
 
-public class FuncionarioFormController implements Initializable {
+public class DepartmentFormController implements Initializable {
+
+	private List<DataChangeListener> dataChangeListeners = new ArrayList<>();
 	
-	private FuncionarioService service;
+	private DepartmentService service;
 	
-	private Funcionario entity;
+	private Department entity;
 	
 	@FXML
-	private TextField txtEmail;
+	private TextField txtId;
 	
 	@FXML 
 	private TextField txtName;
 	
 	@FXML
-	private TextField txtArea;
-	
-	@FXML
 	private Label labelErrorName;
-	
-	@FXML
-	private Label labelErrorEmail;
-	
-	@FXML
-	private Label labelErrorArea;
 	
 	@FXML 
 	private Button btSave;
@@ -47,16 +46,16 @@ public class FuncionarioFormController implements Initializable {
 	@FXML 
 	private Button btCancel;
 	
-	public void setFuncionario(Funcionario entity) {
+	public void setDepartment(Department entity) {
 		this.entity = entity;
 	}
 	
-	public void setFuncionarioService(FuncionarioService service) {
+	public void setDepartmentService(DepartmentService service) {
 		this.service = service;
 	}
 	
-	public FuncionarioService getFuncionarioService() {
-		return service;
+	public void subscribeDataChangeListener(DataChangeListener listener) {
+		dataChangeListeners.add(listener);
 	}
 	
 	@FXML
@@ -64,51 +63,39 @@ public class FuncionarioFormController implements Initializable {
 		if(entity == null) {
 			throw new IllegalStateException("Entity is null!");
 		}
-		
 		if(service == null) {
 			throw new IllegalStateException("Service is null");
 		}
-		
-		if(labelErrorName != null) {
-			labelErrorName.setText(null);
-		}
-		
-		if(labelErrorEmail != null) {
-			labelErrorEmail.setText(null);
-		}
-		
-		if(labelErrorArea != null) {
-			labelErrorArea.setText(null);
-		}
-		
 		try {
 			entity = getFormData(); //pega os dados dos TextField e seta os atributos de entity com esses dados(inverso de updateFormData()).
-			service.saveOrUpdate(entity); //implementar!!!
+			service.saveOrUpdate(entity); //se o departamento ja existir, atualiza. Se n�o, cria um novo.
+			notifyDataChangeListeners(); //avisa os "listeners"
 			Utils.currentStage(event).close(); //fecha a tela.
+		} catch (DbException e) {
+			Alerts.showAlert("Error saving object", null, e.getMessage(), AlertType.ERROR);
 		} catch (ValidationException e) {
 			setErrorMessages(e.getErrors());
 		}
 	}
-
-	private Funcionario getFormData() {
-		Funcionario obj = new Funcionario();
+	
+	private void notifyDataChangeListeners() {
+		for(DataChangeListener listener: dataChangeListeners) {
+			listener.onDataChanged();
+		}
 		
-		ValidationException exception = new ValidationException("Erro de validação");
+	}
+
+	private Department getFormData() {
+		Department obj = new Department();
+		
+		ValidationException exception = new ValidationException("Validation error!");
+		
+		obj.setId(Utils.tryParseToInt(txtId.getText()));
 		
 		if(txtName.getText() == null || txtName.getText().trim().equals(" ")) {
 			exception.addError("name", " Field can't be empty");
 		}
 		obj.setName(txtName.getText());
-		
-		if(txtEmail.getText() == null || txtEmail.getText().trim().equals(" ")) {
-			exception.addError("email", " Field can't be empty");
-		}
-		obj.setEmail(txtEmail.getText());
-		
-		if(txtArea.getText() == null || txtArea.getText().trim().equals(" ")) {
-			exception.addError("area", " Field can't be empty");
-		}
-		obj.setArea(txtArea.getText());
 		
 		if(exception.getErrors().size() > 0) {
 			throw exception;
@@ -122,32 +109,23 @@ public class FuncionarioFormController implements Initializable {
 	}
 	
 	private void InitializeNodes() {
-		Constraints.setTextFieldMaxLength(txtEmail, 40);
-		Constraints.setTextFieldMaxLength(txtName, 40);
+		Constraints.setTextFieldInteger(txtId);
+		Constraints.setTextFieldMaxLength(txtName, 30);
 	}
 	
 	public void updateFormData() {
 		if(entity == null) {
 			throw new IllegalStateException("Entity is null!");
 		}
-		txtEmail.setText(entity.getEmail());
+		txtId.setText(String.valueOf(entity.getId()));
 		txtName.setText(entity.getName());
-		txtArea.setText(entity.getArea());
 	}
 	
-	private void setErrorMessages(Map<String, String> errors) { 
+	private void setErrorMessages(Map<String, String> errors) {
 		Set<String> fields = errors.keySet();
 		
 		if(fields.contains("name")) {
 			labelErrorName.setText(errors.get("name"));
-		}
-		
-		if(fields.contains("email")) {
-			labelErrorEmail.setText(errors.get("email"));
-		}
-		
-		if(fields.contains("area")) {
-			labelErrorArea.setText(errors.get("area"));
 		}
 	}
 	
